@@ -1,0 +1,18 @@
+award-local
+===========
+
+Bundled third-party software:
+  나눔명조 (NanumMyeongjo Regular/Bold/ExtraBold), 나눔고딕 (NanumGothic Regular/Bold/ExtraBold)
+    static/fonts/*.ttf — Copyright (c) 2010 NHN Corporation — SIL Open Font License 1.1 (static/fonts/OFL.txt)
+    출처: https://github.com/google/fonts/tree/main/ofl (nanummyeongjo, nanumgothic)
+  Pillow (pip 의존성, 동봉 안 함) — HPND License
+
+그림 요소(테두리·뇌문·메달·한지 질감·직인)는 모두 코드로 그립니다. 실존 기관의 로고·직인은 들어 있지 않습니다 — 사용자가 올린 파일만 씁니다.
+
+Files authored for this package (MIT): app.py, render.py, phrases.py, ui.html, selftest.py, setup.sh, README.md
+
+LLM (not bundled): called via an OpenAI-compatible API; default deployment is Ollama (https://github.com/ollama/ollama, MIT)
+  serving Google Gemma (gemma4:31b, https://ai.google.dev/gemma — see Gemma's terms of use).
+
+This package: Copyright (c) 2026 gggg8657 <dongjukim.dev@gmail.com>
+화면 하단·메타데이터의 저작자 표기는 지우거나 바꾸지 마세요.

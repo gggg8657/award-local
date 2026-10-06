@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>award local — 상장 생성기</title>
+<style>
+  :root{--bg:#f6f5f2;--fg:#1f1f1f;--muted:#6f6f6f;--line:#dcdad4;--acc:#7a5a1e;--panel:#fff;--soft:#f1efe9}
+  body.dark{--bg:#1b1b1d;--fg:#e8e8e8;--muted:#9a9a9a;--line:#444;--panel:#242427;--soft:#2c2c30;--acc:#d6b46a}
+  *{box-sizing:border-box}
+  body{font:14px/1.55 -apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:14px 16px;height:100vh;display:flex;flex-direction:column}
+  h1{font-size:18px;margin:0 56px 10px 0}h1 small{font-weight:400;color:var(--muted);font-size:13px}
+  .main{display:flex;gap:16px;flex:1;min-height:0}
+  .left{width:420px;min-width:320px;display:flex;flex-direction:column;min-height:0}
+  .right{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+  .tabs{display:flex;gap:4px;margin-bottom:8px}.tabs button{flex:1}
+  .tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .pane{flex:1;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px 14px}
+  .pane[hidden]{display:none}
+  fieldset{border:none;border-top:1px solid var(--line);margin:0 0 6px;padding:8px 0 4px}
+  fieldset:first-child{border-top:none;padding-top:0}
+  legend{font-weight:700;font-size:13px;color:var(--acc);padding:0 6px 0 0}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:6px 0 2px}
+  input,select,textarea,button{font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
+  input[type=text],input[type=date],select,textarea{width:100%}
+  input[type=file]{width:100%;font-size:12.5px;padding:4px}
+  textarea{resize:vertical}
+  button{cursor:pointer}button.primary{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+  .designs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+  .designs button{font-size:12px;padding:5px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1.3}
+  .designs img{width:60px;height:85px;object-fit:contain;border:1px solid var(--line);background:#fff}
+  .designs button.on{outline:2px solid var(--acc);border-color:var(--acc);font-weight:700}
+  .hint{font-size:12px;color:var(--muted);margin-top:3px}
+  .err{color:#b3261e;font-size:12.5px;white-space:pre-wrap}
+  .ok{color:#2e7d32;font-size:12.5px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  #view{flex:1;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--soft);display:flex;align-items:flex-start;justify-content:center;padding:16px;min-height:0}
+  #view img{max-width:100%;max-height:100%;box-shadow:0 2px 14px rgba(0,0,0,.18);background:#fff}
+  #status{color:var(--muted);font-size:12.5px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{border-bottom:1px solid var(--line);padding:4px 5px;text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  td,#status,.hint{overflow-wrap:anywhere}td{word-break:keep-all;min-width:4.5em}td:first-child,td:last-child{white-space:nowrap}
+  .thumb{max-height:42px;max-width:120px;vertical-align:middle;border:1px solid var(--line);border-radius:4px;background:#fff}
+  .inline{display:flex;gap:6px;align-items:center}
+  @media (max-width:860px){body{height:auto}.main{flex-direction:column}.left{width:auto}#view{min-height:70vh}}
+</style>
+</head>
+<body>
+<h1>상장 생성기 <small>— 상장·표창장·감사장 · A4 PDF/PNG(300dpi) · 일괄 발급</small></h1>
+<div class="main">
+  <div class="left">
+    <div class="tabs"><button data-tab="one" class="on">한 장 만들기</button><button data-tab="batch">일괄 발급</button><button data-tab="hist">발급 이력</button></div>
+
+    <div class="pane" id="one">
+      <fieldset><legend>디자인</legend>
+        <div class="designs" id="designs"></div>
+        <div class="row"><div><label>용지</label><select id="orient"><option value="portrait">A4 세로</option><option value="landscape">A4 가로</option></select></div>
+          <div><label>번호</label><input type="text" id="number" placeholder="2026-001 (비우면 번호 없음)"></div></div>
+        <div id="cornersBox" hidden><label>금띠 모서리</label><select id="corners"><option value="4">네 모서리</option><option value="2">왼쪽 위·오른쪽 아래 두 모서리</option></select></div>
+      </fieldset>
+      <fieldset><legend>상훈</legend>
+        <div class="row"><div><label>종류 (큰 제목)</label><select id="kindSel"></select></div>
+          <div id="kindCustomBox" hidden><label>직접 입력</label><input type="text" id="kindCustom" placeholder="예: 임명장, 최우수상"></div></div>
+        <label>상훈명 (부제, 선택)</label><input type="text" id="award" placeholder="예: 2026년도 연구성과 우수상">
+      </fieldset>
+      <fieldset><legend>수상자</legend>
+        <div class="row"><div><label>성명</label><input type="text" id="name"></div><div><label>직위</label><input type="text" id="position"></div></div>
+        <label>소속</label><input type="text" id="dept">
+      </fieldset>
+      <fieldset><legend>수상 문구</legend>
+        <select id="phraseSel"></select>
+        <textarea id="text" rows="5" style="margin-top:6px"></textarea>
+        <div class="bar" style="margin-top:4px"><button id="polish" title="로컬 LLM 으로 상장 문체로 고쳐 씁니다">✨ 상장 문체로 다듬기</button><span id="polishMsg" class="hint"></span></div>
+        <div class="hint">기본 문구를 고르거나, 직접 고쳐 쓰면 '직접 입력'이 됩니다.</div>
+      </fieldset>
+      <fieldset><legend>수여</legend>
+        <div class="row"><div><label>수여 일자</label><input type="date" id="date"></div><div><label>기관명</label><input type="text" id="org" placeholder="예: ○○연구원"></div></div>
+        <div class="row"><div><label>수여자 직함</label><input type="text" id="giver_title" placeholder="예: 원장"></div><div><label>수여자 성명</label><input type="text" id="giver_name"></div></div>
+      </fieldset>
+      <fieldset><legend>직인</legend>
+        <div class="row"><div><select id="seal_mode"><option value="auto-square">자동 생성 — 사각</option><option value="auto-round">자동 생성 — 원형</option><option value="upload">이미지 올리기</option><option value="none">없음</option></select></div>
+          <div id="sealTextBox"><input type="text" id="seal_text" placeholder="도장 글자 (비우면 자동)"></div></div>
+        <div id="sealUpBox" hidden><input type="file" id="sealFile" accept="image/*"><div class="inline"><img id="sealThumb" class="thumb" hidden alt=""><span class="hint">흰 바탕 스캔본도 됩니다 (흰색을 투명 처리)</span></div></div>
+      </fieldset>
+      <fieldset><legend>기관 마크 (선택)</legend>
+        <input type="file" id="logoFile" accept="image/*">
+        <div class="row" style="margin-top:6px"><div><select id="logo_mode"><option value="top">상단 (리본형은 메달 안)</option><option value="watermark">가운데 옅은 워터마크</option><option value="none">표시 안 함</option></select></div>
+          <div class="inline"><img id="logoThumb" class="thumb" hidden alt=""><button id="logoDel" hidden>지우기</button></div></div>
+        <div class="hint">로고는 직접 올린 파일만 씁니다. 투명 PNG 권장.</div>
+      </fieldset>
+    </div>
+
+    <div class="pane" id="batch" hidden>
+      <p class="hint" style="margin-top:0">왼쪽 '한 장 만들기'의 디자인·상훈·문구·수여자 설정을 그대로 쓰고, 수상자만 바꿔 여러 장을 만듭니다. 번호는 '번호' 칸부터 1씩 올라갑니다.</p>
+      <label>수상자 목록 — 엑셀에서 복사해 붙여넣기 또는 CSV (이름,소속,직위[,문구])</label>
+      <textarea id="rowsText" rows="9" placeholder="이름	소속	직위	문구(선택)&#10;홍길동	인공지능응용연구실	선임연구원&#10;김영희	원자력안전연구소	책임연구원"></textarea>
+      <label>또는 파일 (.csv / .xlsx — 첫 시트)</label><input type="file" id="rowsFile" accept=".csv,.tsv,.txt,.xlsx">
+      <div id="rowsInfo" class="hint"></div>
+      <div id="rowsTable" style="max-height:220px;overflow:auto;margin:6px 0"></div>
+      <div class="row"><div><label>출력 형식</label><select id="batchFmt"><option value="pdf">PDF 한 파일 (여러 쪽)</option><option value="zip-pdf">ZIP — 사람별 PDF</option><option value="zip-png">ZIP — 사람별 PNG(300dpi)</option></select></div>
+        <div style="display:flex;align-items:flex-end"><button class="primary" id="batchGo" style="width:100%">일괄 발급</button></div></div>
+      <div id="batchMsg" class="hint"></div>
+    </div>
+
+    <div class="pane" id="hist" hidden>
+      <div class="bar" style="margin-bottom:6px"><input type="text" id="histQ" placeholder="이름·번호·상훈 검색" style="flex:1"><button id="histRefresh">새로고침</button></div>
+      <div id="histTable"></div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="bar">
+      <button class="primary" id="dlPdf">PDF 내려받기</button>
+      <button id="dlPng">PNG (300dpi)</button>
+      <button id="print">인쇄</button>
+      <button id="theme">🌙</button>
+      <span id="status"></span>
+    </div>
+    <div class="hint">내려받기·인쇄를 하면 발급 이력에 기록되고 번호가 다음으로 넘어갑니다. 미리보기는 기록되지 않습니다.</div>
+    <div id="view"><img id="preview" alt="미리보기"></div>
+  </div>
+</div>
+<iframe id="printFrame" style="position:absolute;width:0;height:0;border:0" title="인쇄"></iframe>
+
+<script>
+const $ = id => document.getElementById(id);
+const FIELDS = ['orient', 'number', 'award', 'name', 'position', 'dept', 'text', 'date', 'org', 'giver_title', 'giver_name', 'seal_mode', 'seal_text', 'logo_mode', 'kindCustom', 'corners'];
+let META = null, state = { design: 'traditional', kind: '상장', phraseIdx: 0, logo_id: '', seal_id: '' }, rows = [];
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+function kind() { return $('kindSel').value === '__custom' ? ($('kindCustom').value.trim() || '상장') : $('kindSel').value; }
+function cfg() {
+  const c = { design: state.design, kind: kind(), logo_id: state.logo_id, seal_id: state.seal_id };
+  FIELDS.forEach(f => c[f] = $(f).value);
+  return c;
+}
+function save() { store.set('award-form', { ...cfg(), kindSel: $('kindSel').value, phraseSel: $('phraseSel').value }); }
+
+function josa(w) { const c = w.trim().slice(-1); if (c >= '가' && c <= '힣') return w + ((c.charCodeAt(0) - 0xAC00) % 28 ? '을' : '를'); return w + '을'; }
+function phraseList() {
+  const k = kind(); if (META.phrases[k]) return META.phrases[k];
+  return META.phrases['상장'].map(([l, t]) => [l, t.replace(/상장을 수여합니다/, josa(k) + ' 수여합니다')]);
+}
+function fillPhrases(keepIdx) {
+  const list = phraseList(), sel = $('phraseSel'), cur = sel.value;
+  sel.innerHTML = list.map(([l], i) => `<option value="${i}">${i + 1}. ${l}</option>`).join('') + '<option value="custom">직접 입력</option>';
+  sel.value = keepIdx != null ? keepIdx : cur;
+  if (sel.value !== 'custom' && list[+sel.value]) $('text').value = list[+sel.value][1];
+}
+
+function syncVis() {
+  $('kindCustomBox').hidden = $('kindSel').value !== '__custom';
+  $('cornersBox').hidden = state.design !== 'goldcorner';
+  const m = $('seal_mode').value;
+  $('sealTextBox').hidden = !m.startsWith('auto'); $('sealUpBox').hidden = m !== 'upload';
+  $('logoThumb').hidden = $('logoDel').hidden = !state.logo_id;
+  if (state.logo_id) $('logoThumb').src = 'api/upload/' + state.logo_id;
+  $('sealThumb').hidden = !state.seal_id; if (state.seal_id) $('sealThumb').src = 'api/upload/' + state.seal_id;
+  document.querySelectorAll('.designs button').forEach(b => b.classList.toggle('on', b.dataset.id === state.design));
+}
+
+let timer = null, ctrl = null, lastUrl = null;
+function refresh() {
+  save(); syncVis(); clearTimeout(timer);
+  timer = setTimeout(async () => {
+    if (ctrl) ctrl.abort(); ctrl = new AbortController();
+    $('status').textContent = '미리보기 그리는 중…';
+    try {
+      const r = await fetch('api/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cfg: cfg() }), signal: ctrl.signal });
+      if (!r.ok) throw new Error((await r.json()).error);
+      const url = URL.createObjectURL(await r.blob());
+      $('preview').src = url; if (lastUrl) URL.revokeObjectURL(lastUrl); lastUrl = url;
+      $('status').textContent = '';
+    } catch (e) { if (e.name !== 'AbortError') $('status').innerHTML = '<span class="err">미리보기 실패: ' + e.message + '</span>'; }
+  }, 300);
+}
+
+function bump(num, k) {
+  const m = [...(num || '').matchAll(/\d+/g)].pop(); if (!m) return num;
+  return num.slice(0, m.index) + String(+m[0] + k).padStart(m[0].length, '0') + num.slice(m.index + m[0].length);
+}
+function fname(r, fallback) {
+  const cd = r.headers.get('Content-Disposition') || '', m = cd.match(/filename\*=UTF-8''([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : fallback;
+}
+async function issue(format, rowsArg) {
+  const r = await fetch('api/issue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cfg: cfg(), format, rows: rowsArg || null }) });
+  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).error; } catch (e) {} throw new Error(m); }
+  return { blob: await r.blob(), name: fname(r, 'award.' + (format === 'png' ? 'png' : format.startsWith('zip') ? 'zip' : 'pdf')) };
+}
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+async function busy(btn, label, fn) {
+  const t = btn.textContent; btn.disabled = true; btn.textContent = label;
+  try { await fn(); } catch (e) { $('status').innerHTML = '<span class="err">' + e.message + '</span>'; }
+  finally { btn.disabled = false; btn.textContent = t; }
+}
+function advance(n) { if ($('number').value.trim()) { $('number').value = bump($('number').value.trim(), n); refresh(); } }
+
+$('dlPdf').onclick = () => busy($('dlPdf'), '만드는 중…', async () => { const f = await issue('pdf'); download(f.blob, f.name); $('status').innerHTML = '<span class="ok">✔ ' + f.name + ' — 이력에 기록</span>'; advance(1); });
+$('dlPng').onclick = () => busy($('dlPng'), '만드는 중…', async () => { const f = await issue('png'); download(f.blob, f.name); $('status').innerHTML = '<span class="ok">✔ ' + f.name + ' — 이력에 기록</span>'; advance(1); });
+$('print').onclick = () => busy($('print'), '준비 중…', async () => {
+  const f = await issue('pdf'), fr = $('printFrame');
+  fr.onload = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.open(fr.src); } };
+  fr.src = URL.createObjectURL(f.blob); advance(1);
+  $('status').innerHTML = '<span class="ok">인쇄 창을 엽니다 — 배율 "실제 크기(100%)"로 인쇄하세요</span>';
+});
+
+$('polish').onclick = () => busy($('polish'), '다듬는 중…', async () => {
+  $('polishMsg').textContent = '';
+  const r = await fetch('api/polish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: $('text').value, kind: kind() }) });
+  const j = await r.json();
+  if (!r.ok) { $('polishMsg').innerHTML = '<span class="err">' + j.error + '</span>'; return; }
+  $('text').dataset.prev = $('text').value; $('text').value = j.text; $('phraseSel').value = 'custom';
+  $('polishMsg').innerHTML = '다듬었습니다 · <a href="#" id="undo">되돌리기</a>';
+  $('undo').onclick = e => { e.preventDefault(); $('text').value = $('text').dataset.prev; $('polishMsg').textContent = ''; refresh(); };
+  refresh();
+});
+
+async function upload(file) {
+  const data = await new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = no; fr.readAsDataURL(file); });
+  const r = await fetch('api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data }) });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error); return j.id;
+}
+$('logoFile').onchange = async e => { if (!e.target.files[0]) return; try { state.logo_id = await upload(e.target.files[0]); if ($('logo_mode').value === 'none') $('logo_mode').value = 'top'; refresh(); } catch (er) { $('status').innerHTML = '<span class="err">로고: ' + er.message + '</span>'; } };
+$('logoDel').onclick = () => { state.logo_id = ''; $('logoFile').value = ''; refresh(); };
+$('sealFile').onchange = async e => { if (!e.target.files[0]) return; try { state.seal_id = await upload(e.target.files[0]); refresh(); } catch (er) { $('status').innerHTML = '<span class="err">직인: ' + er.message + '</span>'; } };
+
+$('kindSel').onchange = () => { syncVis(); fillPhrases($('phraseSel').value); refresh(); };
+$('kindCustom').oninput = () => { fillPhrases($('phraseSel').value); refresh(); };
+$('phraseSel').onchange = () => { if ($('phraseSel').value !== 'custom') fillPhrases($('phraseSel').value); else $('text').focus(); refresh(); };
+$('text').oninput = () => { $('phraseSel').value = 'custom'; refresh(); };
+FIELDS.filter(f => !['text', 'kindCustom'].includes(f)).forEach(f => { $(f).addEventListener('input', refresh); $(f).addEventListener('change', refresh); });
+$('theme').onclick = () => { document.body.classList.toggle('dark'); store.set('award-dark', document.body.classList.contains('dark')); };
+
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  ['one', 'batch', 'hist'].forEach(id => $(id).hidden = id !== b.dataset.tab);
+  if (b.dataset.tab === 'hist') loadHist();
+});
+
+// ── 일괄 ──
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let rowsTimer = null;
+async function parseRows(body) {
+  const r = await fetch('api/rows', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json(); if (!r.ok) { $('rowsInfo').innerHTML = '<span class="err">' + j.error + '</span>'; return; }
+  rows = j.rows; const start = $('number').value.trim();
+  $('rowsInfo').textContent = rows.length ? `${rows.length}명` + (start ? ` · 번호 ${start} ~ ${bump(start, rows.length - 1)}` : ' · 번호 없음') : '';
+  $('rowsTable').innerHTML = rows.length ? '<table><tr><th>#</th><th>이름</th><th>소속</th><th>직위</th><th>문구</th></tr>' +
+    rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.name)}</td><td>${esc(r.dept)}</td><td>${esc(r.position)}</td><td>${r.text ? '개별' : '공통'}</td></tr>`).join('') + '</table>' : '';
+}
+$('rowsText').oninput = () => { clearTimeout(rowsTimer); rowsTimer = setTimeout(() => parseRows({ text: $('rowsText').value }), 300); };
+$('rowsFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (/\.xlsx$/i.test(f.name)) { const data = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(f); }); await parseRows({ xlsx: data }); }
+  else { $('rowsText').value = await f.text(); await parseRows({ text: $('rowsText').value }); }
+};
+$('batchGo').onclick = () => busy($('batchGo'), '만드는 중…', async () => {
+  if (!rows.length) { $('batchMsg').innerHTML = '<span class="err">수상자 목록을 먼저 넣으세요</span>'; return; }
+  $('batchMsg').textContent = `${rows.length}장 그리는 중… (장당 1초 안팎)`;
+  const f = await issue($('batchFmt').value, rows); download(f.blob, f.name);
+  $('batchMsg').innerHTML = `<span class="ok">✔ ${f.name} — ${rows.length}장, 이력에 기록</span>`; advance(rows.length);
+});
+
+// ── 이력 ──
+let HIST = [];
+async function loadHist() { HIST = await fetch('api/history').then(r => r.json()); drawHist(); }
+function drawHist() {
+  const q = $('histQ').value.trim();
+  const list = HIST.filter(h => !q || [h.name, h.number, h.kind, h.award, h.dept].join(' ').includes(q));
+  $('histTable').innerHTML = list.length ? '<table><tr><th>일자</th><th>번호</th><th>수상자</th><th>상훈</th><th></th></tr>' + list.map(h =>
+    `<tr><td>${esc(h.date)}</td><td>${esc(h.number)}</td><td>${esc(h.name)}<div class="hint">${esc(h.dept)} ${esc(h.position)}</div></td><td>${esc(h.kind)}<div class="hint">${esc(h.award)}</div></td>` +
+    `<td><a href="api/issued/${h.id}.pdf#page=${h.page || 1}" target="_blank">PDF</a></td></tr>`).join('') + '</table>' : '<p class="hint">발급 이력이 없습니다.</p>';
+}
+$('histQ').oninput = drawHist; $('histRefresh').onclick = loadHist;
+
+// ── 시작 ──
+(async () => {
+  if (store.get('award-dark')) document.body.classList.add('dark');
+  META = await fetch('api/meta').then(r => r.json());
+  $('designs').innerHTML = META.designs.map(d => `<button data-id="${d.id}" title="${d.name}"><img src="api/thumb/${d.id}.jpg" alt="" loading="lazy">${d.name}</button>`).join('');
+  document.querySelectorAll('.designs button').forEach(b => b.onclick = () => { state.design = b.dataset.id; refresh(); });
+  $('kindSel').innerHTML = META.kinds.map(k => `<option>${k}</option>`).join('') + '<option value="__custom">직접 입력…</option>';
+  const s = store.get('award-form');
+  if (s) {
+    FIELDS.forEach(f => { if (s[f] != null) $(f).value = s[f]; });
+    state.design = s.design || state.design; state.logo_id = s.logo_id || ''; state.seal_id = s.seal_id || '';
+    $('kindSel').value = s.kindSel || '상장'; fillPhrases(s.phraseSel || '0');
+    if (s.phraseSel === 'custom') $('text').value = s.text || '';
+  } else {
+    $('kindSel').value = '상장'; fillPhrases('0');
+    $('name').value = '홍길동'; $('dept').value = '○○연구실'; $('position').value = '선임연구원';
+    $('org').value = '○○연구원'; $('giver_title').value = '원장'; $('giver_name').value = '○○○';
+  }
+  $('date').value = META.today;          // 수여 일자는 늘 오늘에서 시작
+  $('number').value = (s && s.number === '') ? '' : META.next_number;  // 번호는 발급 이력 기준 다음 번호
+  fetch('api/models').then(r => r.json()).then(ms => {
+    if (!ms.length) { $('polish').disabled = true; $('polish').title = 'LLM 서버에 연결되지 않아 쓸 수 없습니다'; $('polishMsg').textContent = '(LLM 없음 — 다듬기 비활성)'; }
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>
