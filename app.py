@@ -46,10 +46,20 @@ def read(p):
         return f.read()
 
 
-def ws(*p):
-    d = os.path.join(WS, *p[:-1]) if len(p) > 1 else WS
+def ws(*p, base=WS):
+    d = os.path.join(base, *p[:-1]) if len(p) > 1 else base
     os.makedirs(d, exist_ok=True)
-    return os.path.join(WS, *p)
+    return os.path.join(base, *p)
+
+
+def user_ws(h):
+    """포털이 넘긴 사용자별 작업 폴더. owner(서버 주인)·헤더 없음(단독 실행) = 예전 WORKSPACE 그대로"""
+    u = (h.headers.get("X-Agent-User") or "owner").strip()
+    if u == "owner":
+        return WS
+    d = os.path.join(WS, "u", re.sub(r"[^A-Za-z0-9_.-]", "_", u)[:64] or "_")
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 # ── 번호 ────────────────────────────────────────────────────────────────
@@ -62,11 +72,11 @@ def bump(num, k=1):
     return num[:g.start()] + str(int(g.group()) + k).zfill(len(g.group())) + num[g.end():]
 
 
-def next_number(year=None):
+def next_number(year=None, base=WS):
     """올해 발급 이력의 'YYYY-NNN' 최댓값 + 1"""
     year = year or datetime.date.today().year
     top = 0
-    for h in history():
+    for h in history(base=base):
         m = re.search(rf"{year}-(\d+)", h.get("number") or "")
         if m:
             top = max(top, int(m.group(1)))
@@ -74,8 +84,8 @@ def next_number(year=None):
 
 
 # ── 이력 ────────────────────────────────────────────────────────────────
-def history(limit=None):
-    p = os.path.join(WS, "history.jsonl")
+def history(limit=None, base=WS):
+    p = os.path.join(base, "history.jsonl")
     if not os.path.exists(p):
         return []
     out = []
@@ -88,14 +98,14 @@ def history(limit=None):
     return out[:limit] if limit else out
 
 
-def log_issue(recs):
-    with LOCK, open(ws("history.jsonl"), "a", encoding="utf-8") as f:
+def log_issue(recs, base=WS):
+    with LOCK, open(ws("history.jsonl", base=base), "a", encoding="utf-8") as f:
         for r in recs:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 
 # ── 업로드 이미지 (로고·직인) ──────────────────────────────────────────────
-def save_upload(data_url):
+def save_upload(data_url, base=WS):
     raw = base64.b64decode(data_url.split(",", 1)[-1])
     if len(raw) > 15 * 1024 * 1024:
         raise ValueError("이미지가 너무 큽니다 (15MB 이하)")
@@ -109,15 +119,15 @@ def save_upload(data_url):
     b = io.BytesIO()
     im.save(b, "PNG")
     uid = hashlib.sha1(b.getvalue()).hexdigest()[:16]
-    with open(ws("uploads", uid + ".png"), "wb") as f:
+    with open(ws("uploads", uid + ".png", base=base), "wb") as f:
         f.write(b.getvalue())
     return uid
 
 
-def load_upload(uid):
+def load_upload(uid, base=WS):
     if not uid or not re.fullmatch(r"[0-9a-f]{16}", uid):
         return None
-    p = os.path.join(WS, "uploads", uid + ".png")
+    p = os.path.join(base, "uploads", uid + ".png")
     if not os.path.exists(p):
         return None
     im = Image.open(p)
@@ -126,9 +136,9 @@ def load_upload(uid):
 
 
 # ── 렌더·발급 ───────────────────────────────────────────────────────────
-def draw(cfg, dpi=DPI):
-    logo = load_upload(cfg.get("logo_id")) if (cfg.get("logo_mode") or "top") != "none" else None
-    seal = load_upload(cfg.get("seal_id")) if cfg.get("seal_mode") == "upload" else None
+def draw(cfg, dpi=DPI, base=WS):
+    logo = load_upload(cfg.get("logo_id"), base) if (cfg.get("logo_mode") or "top") != "none" else None
+    seal = load_upload(cfg.get("seal_id"), base) if cfg.get("seal_mode") == "upload" else None
     return render.render(cfg, dpi, logo=logo, seal=seal)
 
 
@@ -146,9 +156,9 @@ def thumb_jpeg(design):
     return THUMBS[design]
 
 
-def preview_jpeg(cfg):
+def preview_jpeg(cfg, base=WS):
     b = io.BytesIO()
-    draw(cfg, PREVIEW_DPI).save(b, "JPEG", quality=88)
+    draw(cfg, PREVIEW_DPI, base).save(b, "JPEG", quality=88)
     return b.getvalue()
 
 
@@ -170,20 +180,20 @@ def safe_name(s):
     return re.sub(r'[\\/:*?"<>|\s]+', "_", (s or "").strip()) or "상장"
 
 
-def issue(cfg, rows=None, fmt="pdf"):
+def issue(cfg, rows=None, fmt="pdf", base=WS):
     """발급 → (bytes, 파일명, content-type). rows 가 있으면 일괄(번호 자동 증가). 발급본 PDF 는 WORKSPACE/issued 에 보관."""
     rid = f"{datetime.date.today()}-{secrets.token_hex(3)}"
     if rows:
         rows = rows[:MAX_BATCH]
-        start = (cfg.get("number") or "").strip() or next_number()
+        start = (cfg.get("number") or "").strip() or next_number(base=base)
         cfgs = [cfg_for_row(cfg, r, bump(start, i)) for i, r in enumerate(rows)]
     else:
         cfgs = [cfg]
-    imgs = [draw(c) for c in cfgs]
+    imgs = [draw(c, base=base) for c in cfgs]
     pdf = render.pdf_bytes(imgs, DPI)
-    with open(ws("issued", rid + ".pdf"), "wb") as f:
+    with open(ws("issued", rid + ".pdf", base=base), "wb") as f:
         f.write(pdf)
-    log_issue([_record(c, rid, i + 1) for i, c in enumerate(cfgs)])
+    log_issue([_record(c, rid, i + 1) for i, c in enumerate(cfgs)], base)
     kind = safe_name(cfg.get("kind"))
     base = f"{kind}_{safe_name(cfgs[0].get('name'))}" if len(cfgs) == 1 else f"{kind}_일괄{len(cfgs)}장"
     if fmt == "png" and len(cfgs) == 1:
@@ -318,10 +328,10 @@ def models():
         return []
 
 
-def meta():
+def meta(base=WS):
     return {"designs": [{"id": k, "name": v["name"]} for k, v in render.DESIGNS.items()],
             "kinds": phrases.KINDS, "phrases": {k: phrases.phrases_for(k) for k in phrases.KINDS},
-            "next_number": next_number(), "today": datetime.date.today().isoformat(), "model": MODEL}
+            "next_number": next_number(base=base), "today": datetime.date.today().isoformat(), "model": MODEL}
 
 
 # ── HTTP ───────────────────────────────────────────────────────────────
@@ -368,21 +378,21 @@ class H(BaseHTTPRequestHandler):
             if path == "/api/health":
                 return self._send({"ok": True})
             if path == "/api/meta":
-                return self._send(meta())
+                return self._send(meta(user_ws(self)))
             if path == "/api/models":
                 return self._send(models())
             if path == "/api/history":
-                return self._send(history(500))
+                return self._send(history(500, user_ws(self)))
             m = re.fullmatch(r"/api/issued/(\d{4}-\d{2}-\d{2}-[0-9a-f]{6})\.pdf", path)
             if m:
-                with open(os.path.join(WS, "issued", m.group(1) + ".pdf"), "rb") as f:
+                with open(os.path.join(user_ws(self), "issued", m.group(1) + ".pdf"), "rb") as f:
                     return self._send(f.read(), "application/pdf")
             m = re.fullmatch(r"/api/thumb/(\w+)\.jpg", path)
             if m and m.group(1) in render.DESIGNS:
                 return self._send(thumb_jpeg(m.group(1)), "image/jpeg")
             m = re.fullmatch(r"/api/upload/([0-9a-f]{16})", path)
             if m:
-                with open(os.path.join(WS, "uploads", m.group(1) + ".png"), "rb") as f:
+                with open(os.path.join(user_ws(self), "uploads", m.group(1) + ".png"), "rb") as f:
                     return self._send(f.read(), "image/png")
             self._send(signed(HTML).encode(), "text/html; charset=utf-8")
         except FileNotFoundError:
@@ -395,13 +405,13 @@ class H(BaseHTTPRequestHandler):
             req = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
             cfg = req.get("cfg") or {}
             if self.path == "/api/preview":
-                return self._send(preview_jpeg(cfg), "image/jpeg")
+                return self._send(preview_jpeg(cfg, user_ws(self)), "image/jpeg")
             if self.path == "/api/issue":
                 rows = req.get("rows") or None
-                body, name, ctype = issue(cfg, rows, req.get("format") or "pdf")
+                body, name, ctype = issue(cfg, rows, req.get("format") or "pdf", user_ws(self))
                 return self._send(body, ctype, filename=name)
             if self.path == "/api/upload":
-                return self._send({"id": save_upload(req.get("data") or "")})
+                return self._send({"id": save_upload(req.get("data") or "", user_ws(self))})
             if self.path == "/api/rows":
                 text = req.get("text") or ""
                 if req.get("xlsx"):
@@ -426,4 +436,4 @@ if __name__ == "__main__":
         print(out)
         sys.exit(0)
     print(f"award local → http://localhost:{PORT}  (llm={LLM_API} {LLM_BASE} {MODEL}, workspace={WS})  {_SIG}")
-    ThreadingHTTPServer(("", PORT), H).serve_forever()
+    ThreadingHTTPServer((os.environ.get("BIND", ""), PORT), H).serve_forever()
