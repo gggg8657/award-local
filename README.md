@@ -2,6 +2,8 @@
 
 > 디자인과 수상 문구를 고르면 A4 상장을 실시간으로 미리 보여 주고, 인쇄용 PDF·PNG(300dpi)로 발급합니다. 여러 명은 표 붙여넣기·CSV·XLSX로 일괄 발급합니다.
 
+> ⚠️ 연구·내부 시험용 프로토타입입니다(배포·상업 서비스용 아님). 제3자 구성요소의 라이선스는 THIRD_PARTY_NOTICES.md 를 확인하세요.
+
 ![상장 생성기 화면 — 번호는 아래 사용 방법과 대응](docs/img/ui.png)
 
 ## 무엇을 하나
@@ -80,13 +82,17 @@ python3 selftest.py           # LLM 없이 검증 (WORKSPACE 를 임시 폴더�
 ## 출처·감사 (Credits)
 
 - 동봉: 나눔명조·나눔고딕 (Copyright (c) 2010 NHN Corporation, SIL Open Font License 1.1, `static/fonts/OFL.txt`) — 출처 [google/fonts](https://github.com/google/fonts/tree/main/ofl)
-- [Pillow](https://github.com/python-pillow/Pillow) (HPND) — 렌더링 (pip 의존성, 동봉 안 함)
+- [Pillow](https://github.com/python-pillow/Pillow) (MIT-CMU, HPND 계열) — 렌더링 (pip 의존성, 동봉 안 함)
 - 테두리·문양·직인은 모두 코드로 그립니다. 실존 기관의 로고·직인은 들어 있지 않습니다.
-- **LLM 실행** — OpenAI 호환 API 또는 Ollama API로 호출합니다(모델 가중치는 동봉하지 않음). 기본 배포는 [Ollama](https://github.com/ollama/ollama) (MIT) 위의 Google [Gemma](https://ai.google.dev/gemma) `gemma4:31b` — 모델 이용 조건은 Gemma 배포처 참고.
+- **LLM 실행** — OpenAI 호환 API 또는 Ollama API로 호출합니다(모델 가중치는 동봉하지 않음). 기본 배포는 [Ollama](https://github.com/ollama/ollama) (MIT) 위의 Google [Gemma 4](https://huggingface.co/google/gemma-4-31B-it) `gemma4:31b` (Apache-2.0).
 - 이 도구는 [agent-page-portal](https://github.com/gggg8657/agent-page-portal)에 연결해 쓰도록 만들었습니다(단독 실행도 됨).
 
-저작권 표기·전체 목록은 `NOTICE`를 보세요.
+제3자 구성요소 전체 표(버전·라이선스·상업 이용)는 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), 저작권 표기는 `NOTICE` 를 보세요.
 
 ## 라이선스
 
-MIT License — Copyright (c) 2026 gggg8657. `LICENSE` 참고.
+MIT License — Copyright (c) 2026 DongJu Kim (gggg8657). `LICENSE` 참고. 제3자 구성요소는 각자의 라이선스를 따릅니다.
+
+## 만든 사람
+
+DongJu Kim (gggg8657) — 설계·구현
