@@ -105,10 +105,11 @@ def log_issue(recs, base=WS):
 
 
 # ── 업로드 이미지 (로고·직인) ──────────────────────────────────────────────
+MAX_BODY = 25 * 1024 * 1024  # POST 본문 상한: 이미지(15MB)·엑셀을 base64 로 실은 크기
 def save_upload(data_url, base=WS):
     raw = base64.b64decode(data_url.split(",", 1)[-1])
     if len(raw) > 15 * 1024 * 1024:
-        raise ValueError("이미지가 너무 큽니다 (15MB 이하)")
+        raise OverflowError("이미지가 너무 큽니다 (15MB 이하)")
     im = Image.open(io.BytesIO(raw))
     im.load()
     im = render.ImageOps.exif_transpose(im)
@@ -307,7 +308,7 @@ def chat(system, user, model=None):
                     continue
                 raise RuntimeError(f"LLM HTTP {e.code}: {msg[:200]}")
     except urllib.error.URLError as e:
-        raise RuntimeError(f"LLM 서버 연결 실패 ({LLM_BASE}): {e.reason}")
+        raise RuntimeError(f"LLM 서버 연결 실패: {e.reason}")  # 내부 주소는 응답에 넣지 않음
 
 
 def polish(text, kind, model=None):
@@ -402,7 +403,13 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
-            req = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+            n = int(self.headers.get("Content-Length") or 0)
+            if n > MAX_BODY:
+                self.close_connection = True
+                while n > 0 and self.rfile.read(min(n, 1 << 20)):  # 본문을 버려 읽어야 포털(프록시)이 502 대신 413 을 받는다
+                    n -= 1 << 20
+                return self._send({"error": f"요청이 너무 큽니다 (최대 {MAX_BODY // 2**20}MB — 이미지 15MB 이하)"}, code=413)
+            req = json.loads(self.rfile.read(n) or b"{}")
             cfg = req.get("cfg") or {}
             if self.path == "/api/preview":
                 return self._send(preview_jpeg(cfg, user_ws(self)), "image/jpeg")
@@ -422,6 +429,8 @@ class H(BaseHTTPRequestHandler):
                     return self._send({"error": "다듬을 문구가 비어 있습니다"}, code=400)
                 return self._send({"text": polish(req["text"], req.get("kind"), req.get("model"))})
             self._send({"error": "없는 경로"}, code=404)
+        except OverflowError as e:
+            self._send({"error": str(e)}, code=413)
         except Exception as e:
             self._send({"error": f"{type(e).__name__}: {e}"}, code=500)
 
