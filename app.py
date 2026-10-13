@@ -294,13 +294,13 @@ def chat(system, user, model=None):
             req = urllib.request.Request(LLM_BASE + "/chat/completions",
                                          json.dumps({"model": model, "temperature": 0.3, "messages": msgs}).encode(), hdr)
             with urllib.request.urlopen(req, timeout=300) as r:
-                return json.load(r)["choices"][0]["message"]["content"]
+                return json.load(r)["choices"][0]["message"].get("content") or ""   # vLLM 은 빈 응답에 null
         body = {"model": model, "stream": False, "think": False, "options": {"temperature": 0.3}, "messages": msgs}
         for attempt in (0, 1):
             try:
                 req = urllib.request.Request(LLM_BASE + "/api/chat", json.dumps(body).encode(), {"Content-Type": "application/json"})
                 with urllib.request.urlopen(req, timeout=300) as r:
-                    return json.load(r)["message"]["content"]
+                    return json.load(r)["message"].get("content") or ""
             except urllib.error.HTTPError as e:
                 msg = e.read().decode(errors="replace")
                 if attempt == 0 and "think" in msg:
