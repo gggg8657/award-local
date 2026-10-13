@@ -1,6 +1,6 @@
 # 제3자 구성요소 고지 (THIRD_PARTY_NOTICES)
 
-award-local 의 원저작물은 DongJu Kim(gggg8657)이 작성했습니다(`NOTICE`, `LICENSE`). 아래 제3자 구성요소는 각자의 라이선스를 따르며, 이 저장소의 MIT 라이선스로 바뀌지 않습니다.
+award-local 의 원저작물은 DongJu Kim(gggg8657)이 작성했습니다(`NOTICE`, `LICENSE`). 아래 제3자 구성요소는 각자의 라이선스를 따르며, 이 저장소의 라이선스(PolyForm Noncommercial 1.0.0)로 바뀌지 않습니다.
 조사일: 2026-10-12 (실제 파일·설치 메타데이터 기준). "상업 이용" 칸은 확인한 라이선스 문구를 요약한 것이며 법률 판단이 아닙니다.
 
 | 이름 | 버전 | 쓰임 | 라이선스 | 링크 | 상업 이용 | 비고 |
