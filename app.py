@@ -35,6 +35,7 @@ LLM_BASE = os.environ.get("LLM_BASE_URL", "http://localhost:8000/v1" if LLM_API 
 MODEL = os.environ.get("LLM_MODEL", "qwen3:8b")
 LLM_KEY = os.environ.get("LLM_API_KEY", "")
 PORT = int(os.environ.get("PORT", "8779"))
+Image.MAX_IMAGE_PIXELS = 150_000_000  # 업로드 이미지 화소 상한(1.5억) — 이보다 크면 거절, 2배 넘으면 Pillow 가 DecompressionBombError
 DPI = 300
 PREVIEW_DPI = 90
 MAX_BATCH = 300
@@ -111,6 +112,8 @@ def save_upload(data_url, base=WS):
     if len(raw) > 15 * 1024 * 1024:
         raise OverflowError("이미지가 너무 큽니다 (15MB 이하)")
     im = Image.open(io.BytesIO(raw))
+    if im.width * im.height > Image.MAX_IMAGE_PIXELS:  # 헤더만 읽은 상태에서 거절(압축 폭탄)
+        raise OverflowError("이미지 픽셀 수가 너무 많습니다 (1.5억 화소 이하)")
     im.load()
     im = render.ImageOps.exif_transpose(im)
     if max(im.size) > 2400:

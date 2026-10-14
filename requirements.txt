@@ -1,1 +1,1 @@
-pillow>=9.2
+pillow>=12.3.0  # 12.3.0 미만은 PSD·JPEG2000·FITS 디코더 취약점
