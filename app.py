@@ -22,6 +22,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import portal_auth  # 포털 서명 확인 관문·오류 문장 정리(원본 agent-page-portal/sdk/portal_auth.py)
 
 from PIL import Image
 
@@ -398,11 +399,13 @@ class H(BaseHTTPRequestHandler):
             if m:
                 with open(os.path.join(user_ws(self), "uploads", m.group(1) + ".png"), "rb") as f:
                     return self._send(f.read(), "image/png")
+            if self.path.split("?")[0].startswith("/api/"):   # 없는 API 경로는 화면 대신 JSON 404
+                return self._send({"error": "not found"}, code=404)
             self._send(signed(HTML).encode(), "text/html; charset=utf-8")
         except FileNotFoundError:
             self._send({"error": "없음"}, code=404)
         except Exception as e:
-            self._send({"error": f"{type(e).__name__}: {e}"}, code=500)
+            self._send({"error": portal_auth.scrub(f"{type(e).__name__}: {e}")}, code=500)
 
     def do_POST(self):
         try:
@@ -435,7 +438,7 @@ class H(BaseHTTPRequestHandler):
         except OverflowError as e:
             self._send({"error": str(e)}, code=413)
         except Exception as e:
-            self._send({"error": f"{type(e).__name__}: {e}"}, code=500)
+            self._send({"error": portal_auth.scrub(f"{type(e).__name__}: {e}")}, code=500)
 
 
 if __name__ == "__main__":
@@ -448,4 +451,4 @@ if __name__ == "__main__":
         print(out)
         sys.exit(0)
     print(f"award local → http://localhost:{PORT}  (llm={LLM_API} {LLM_BASE} {MODEL}, workspace={WS})  {_SIG}")
-    ThreadingHTTPServer((os.environ.get("BIND", "127.0.0.1"), PORT), __import__("portal_auth").install(H, "award-local")).serve_forever()
+    ThreadingHTTPServer((os.environ.get("BIND", "127.0.0.1"), PORT), portal_auth.install(H, "award-local")).serve_forever()
