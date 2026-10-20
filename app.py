@@ -76,7 +76,7 @@ def bump(num, k=1):
 
 def next_number(year=None, base=WS):
     """올해 발급 이력의 'YYYY-NNN' 최댓값 + 1"""
-    year = year or datetime.date.today().year
+    year = year or render.today_kst().year
     top = 0
     for h in history(base=base):
         m = re.search(rf"{year}-(\d+)", h.get("number") or "")
@@ -156,7 +156,7 @@ def thumb_jpeg(design):
     """디자인 선택 버튼용 작은 견본 (한 번 그려 메모리에 둠)"""
     if design not in THUMBS:
         b = io.BytesIO()
-        render.render(dict(SAMPLE, design=design, date=datetime.date.today().isoformat()), 30).save(b, "JPEG", quality=85)
+        render.render(dict(SAMPLE, design=design, date=render.today_kst().isoformat()), 30).save(b, "JPEG", quality=85)
         THUMBS[design] = b.getvalue()
     return THUMBS[design]
 
@@ -336,7 +336,7 @@ def models():
 def meta(base=WS):
     return {"designs": [{"id": k, "name": v["name"]} for k, v in render.DESIGNS.items()],
             "kinds": phrases.KINDS, "phrases": {k: phrases.phrases_for(k) for k in phrases.KINDS},
-            "next_number": next_number(base=base), "today": datetime.date.today().isoformat(), "model": MODEL}
+            "next_number": next_number(base=base), "today": render.today_kst().isoformat(), "model": MODEL}
 
 
 # ── HTTP ───────────────────────────────────────────────────────────────

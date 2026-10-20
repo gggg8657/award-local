@@ -13,6 +13,18 @@ import re
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
 
+try:
+    from zoneinfo import ZoneInfo
+    KST = ZoneInfo("Asia/Seoul")
+except Exception:  # tzdata 없는 환경 — 한국은 일광절약시간 없음
+    KST = datetime.timezone(datetime.timedelta(hours=9), "KST")
+
+
+def today_kst():
+    """오늘(수여일·올해 번호)은 한국 날짜 — 서버는 UTC"""
+    return datetime.datetime.now(KST).date()
+
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(ROOT, "static", "fonts")
 MJ, MJB, MJX = "NanumMyeongjo-Regular", "NanumMyeongjo-Bold", "NanumMyeongjo-ExtraBold"
@@ -49,7 +61,7 @@ def kdate(s):
     try:
         d = datetime.date.fromisoformat((s or "").strip())
     except ValueError:
-        return (s or "").strip() or kdate(datetime.date.today().isoformat())
+        return (s or "").strip() or kdate(today_kst().isoformat())
     return f"{d.year}년 {d.month}월 {d.day}일"
 
 
